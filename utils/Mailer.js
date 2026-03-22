@@ -27,9 +27,12 @@ const sendViaResend = async (options) => {
     throw new Error("Missing RESEND_API_KEY or RESEND_FROM");
   }
 
+  const recipientOverride = process.env.RESEND_TEST_EMAIL;
+  const toEmail = recipientOverride || options.email;
+
   const payload = {
     from,
-    to: options.email,
+    to: toEmail,
     subject: options.subject,
     html: options.message,
   };
