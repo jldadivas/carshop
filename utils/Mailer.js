@@ -1,15 +1,23 @@
 // backend/utils/Mailer.js
 const nodemailer = require("nodemailer");
 
-const smtpPort = Number(process.env.SMTP_PORT) || 465;
+const smtpPort = Number(process.env.SMTP_PORT) || 587;
+const smtpSecure =
+  typeof process.env.SMTP_SECURE === "string"
+    ? process.env.SMTP_SECURE.toLowerCase() === "true"
+    : smtpPort === 465;
+
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: smtpPort,
-  secure: smtpPort === 465,
+  secure: smtpSecure,
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
+  connectionTimeout: 20000,
+  greetingTimeout: 20000,
+  socketTimeout: 20000,
 });
 
 /**

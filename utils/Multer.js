@@ -46,7 +46,8 @@ exports.uploadWithJson = (req, res, next) => {
     // Use .fields() to capture file AND text fields from multipart form-data
     // This ensures req.body is populated with text fields
     upload.fields([
-      { name: 'profilePicture', maxCount: 1 }
+      { name: 'profilePicture', maxCount: 1 },
+      { name: 'avatar', maxCount: 1 }
     ])(req, res, (err) => {
       if (err) {
         console.error('❌ Multer error:', err.message);
@@ -62,8 +63,12 @@ exports.uploadWithJson = (req, res, next) => {
       console.log('Single file:', req.file);
       
       // Convert files object to single req.file if only one file
-      if (req.files && req.files.profilePicture && req.files.profilePicture.length > 0) {
-        req.file = req.files.profilePicture[0];
+      if (req.files) {
+        if (req.files.profilePicture && req.files.profilePicture.length > 0) {
+          req.file = req.files.profilePicture[0];
+        } else if (req.files.avatar && req.files.avatar.length > 0) {
+          req.file = req.files.avatar[0];
+        }
       }
       
       next();
