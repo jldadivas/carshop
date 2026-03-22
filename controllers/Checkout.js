@@ -3,6 +3,8 @@ const Order = require("../models/Order");
 const User = require("../models/User");
 const Cart = require("../models/Cart");
 const Product = require("../models/Product");
+const sendEmail = require("../utils/Mailer");
+const { generateCheckoutEmailTemplate } = require("../utils/emailTemplate");
 
 // Helper function to check if discount is active
 const checkDiscountActive = (product) => {
@@ -38,7 +40,10 @@ exports.checkout = async (req, res) => {
     }
 
     // Fetch user's cart with populated products
-    const cart = await Cart.findOne({ user: userId }).populate("items.product");
+    const cart = await Cart.findOne({ user: userId }).populate({
+      path: "items.product",
+      populate: { path: "category", select: "name" },
+    });
     if (!cart || !cart.items.length) {
       return res.status(400).json({ success: false, message: "Cart is empty" });
     }
@@ -81,6 +86,7 @@ exports.checkout = async (req, res) => {
 
     let itemsPrice = 0;
     const orderItems = [];
+    const emailItems = [];
 
     for (const item of cart.items) {
       const product = item.product;
@@ -116,6 +122,20 @@ exports.checkout = async (req, res) => {
         image: imageUrl, // Required field in your Order model
         product: product._id,
       });
+
+      const categoryLabel =
+        product?.category?.name ||
+        product?.category?._id ||
+        product?.category ||
+        "Uncategorized";
+
+      emailItems.push({
+        name: product.name,
+        quantity: item.quantity,
+        category: categoryLabel,
+        price: effectivePrice,
+        lineTotal: effectivePrice * item.quantity,
+      });
     }
 
     const taxPrice = itemsPrice * TAX_RATE;
@@ -150,6 +170,22 @@ exports.checkout = async (req, res) => {
 
     // Populate user info in order
     await order.populate('user', 'name email');
+
+    // Send order confirmation email (non-blocking)
+    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+      try {
+        const emailHtml = generateCheckoutEmailTemplate(order, order.user, emailItems);
+        await sendEmail({
+          email: order.user.email,
+          subject: `CarShop Order Confirmation - #${order._id}`,
+          message: emailHtml,
+        });
+      } catch (mailError) {
+        console.error("❌ Checkout email failed:", mailError);
+      }
+    } else {
+      console.warn("⚠️ SMTP not configured. Skipping checkout email.");
+    }
 
     res.status(201).json({ 
       success: true, 
@@ -197,7 +233,7 @@ exports.soloCheckout = async (req, res) => {
     }
 
     // Fetch product
-    const product = await Product.findById(productId);
+    const product = await Product.findById(productId).populate("category", "name");
     if (!product) {
       return res.status(404).json({ success: false, message: "Product not found" });
     }
@@ -245,6 +281,20 @@ exports.soloCheckout = async (req, res) => {
       product: product._id,
     }];
 
+    const categoryLabel =
+      product?.category?.name ||
+      product?.category?._id ||
+      product?.category ||
+      "Uncategorized";
+
+    const emailItems = [{
+      name: product.name,
+      quantity: quantity,
+      category: categoryLabel,
+      price: effectivePrice,
+      lineTotal: effectivePrice * quantity,
+    }];
+
     // Create order
     const order = await Order.create({
       user: userId,
@@ -265,6 +315,22 @@ exports.soloCheckout = async (req, res) => {
 
     // Populate user info in order
     await order.populate('user', 'name email');
+
+    // Send order confirmation email (non-blocking)
+    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+      try {
+        const emailHtml = generateCheckoutEmailTemplate(order, order.user, emailItems);
+        await sendEmail({
+          email: order.user.email,
+          subject: `CarShop Order Confirmation - #${order._id}`,
+          message: emailHtml,
+        });
+      } catch (mailError) {
+        console.error("❌ Checkout email failed:", mailError);
+      }
+    } else {
+      console.warn("⚠️ SMTP not configured. Skipping checkout email.");
+    }
 
     res.status(201).json({ 
       success: true, 

@@ -209,4 +209,77 @@ const generateOrderEmailTemplate = (order, user, status) => {
   return baseTemplate + statusSpecificContent + footer;
 };
 
-module.exports = { generateOrderEmailTemplate };
+const generateCheckoutEmailTemplate = (order, user, items) => {
+  const safeItems = Array.isArray(items) ? items : [];
+  const totalAmount = typeof order.totalPrice === 'number' ? order.totalPrice : 0;
+  const status = order.orderStatus || 'Processing';
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #0f172a; color: #f8fafc; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #f9f9f9; padding: 20px; border-radius: 0 0 8px 8px; }
+        .pill { display: inline-block; padding: 6px 14px; border-radius: 999px; background: #f0d28a; color: #1f2937; font-weight: bold; }
+        .table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        .table th, .table td { padding: 10px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+        .table th { background: #f3f4f6; }
+        .total { margin-top: 10px; padding: 12px; background: #fff; border-radius: 6px; }
+        .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>CarShop</h1>
+          <h2>Order Confirmation</h2>
+        </div>
+        <div class="content">
+          <p>Hello <strong>${user?.name || 'Customer'}</strong>,</p>
+          <p>Thank you for your purchase! Your order has been placed successfully.</p>
+          <p>Order ID: <strong>#${order._id}</strong></p>
+          <p>Status: <span class="pill">${status}</span></p>
+
+          <h3>Order Items</h3>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Category</th>
+                <th>Qty</th>
+                <th>Price</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${safeItems.map(item => `
+                <tr>
+                  <td>${item.name || 'Item'}</td>
+                  <td>${item.category || 'Uncategorized'}</td>
+                  <td>${item.quantity || 0}</td>
+                  <td>₱${Number(item.price || 0).toFixed(2)}</td>
+                  <td>₱${Number(item.lineTotal || 0).toFixed(2)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+
+          <div class="total">
+            <strong>Total Amount:</strong> ₱${Number(totalAmount).toFixed(2)}
+          </div>
+
+          <div class="footer">
+            <p>Thank you for choosing CarShop!</p>
+            <p>(c) 2024 CarShop. All rights reserved.</p>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+};
+
+module.exports = { generateOrderEmailTemplate, generateCheckoutEmailTemplate };
