@@ -1,6 +1,8 @@
 const fs = require('fs');
 const Product = require('../models/Product');
 const Supplier = require('../models/Supplier');
+const Category = require('../models/Category');
+const mongoose = require('mongoose');
 const Review = require('../models/Review'); 
 const { uploadToCloudinary, deleteFromCloudinary } = require('../utils/Cloudinary');
 const { sendPushNotification } = require('../utils/pushNotification');
@@ -35,6 +37,21 @@ const checkDiscountActive = (product) => {
 exports.createProduct = async (req, res, next) => {
   try {
     console.log('🆕 Creating new product...');
+
+    // Normalize category if a name was sent instead of ObjectId
+    if (req.body.category && !mongoose.Types.ObjectId.isValid(req.body.category)) {
+      const matchedCategory = await Category.findOne({
+        name: new RegExp(`^${req.body.category}$`, 'i'),
+        isActive: true,
+      });
+      if (!matchedCategory) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid category. Please select a valid category.',
+        });
+      }
+      req.body.category = matchedCategory._id;
+    }
 
     // Supplier check if provided
     if (req.body.supplier) {
@@ -198,6 +215,21 @@ exports.updateProduct = async (req, res, next) => {
           return res.status(404).json({ success: false, message: 'Supplier not found or inactive' });
         }
       }
+    }
+
+    // Normalize category if a name was sent instead of ObjectId
+    if (req.body.category && !mongoose.Types.ObjectId.isValid(req.body.category)) {
+      const matchedCategory = await Category.findOne({
+        name: new RegExp(`^${req.body.category}$`, 'i'),
+        isActive: true,
+      });
+      if (!matchedCategory) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid category. Please select a valid category.',
+        });
+      }
+      req.body.category = matchedCategory._id;
     }
 
     const currentProduct = await Product.findById(req.params.id);
